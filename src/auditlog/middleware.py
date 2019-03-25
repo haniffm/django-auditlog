@@ -1,41 +1,60 @@
-from __future__ import unicode_literals
-
 import threading
-import time
-import logging
-
-from auditlog.util import is_authenticated
-
-threadlocal = threading.local()
-logger = logging.getLogger('essarch.auditlog')
 
 
 class AuditlogMiddleware(object):
     """
-    Middleware to couple the request's user to log items. This is accomplished by currying the signal receiver with the
-    user from the request (or None if the user is not authenticated).
+    Middleware to couple the request's user to the logger in signal.
     """
     thread_local = threading.local()
 
     def process_request(self, request):
         """
-        Gets the current user from the request and prepares and connects a signal receiver with the user already
-        attached to it.
+        Gets the current user from the request and attaches it to the local thread.
         """
-        # Initialize thread local storage
-        threadlocal.auditlog = {
-            'signal_duid': (self.__class__, time.time()),
-            'remote_addr': request.META.get('REMOTE_ADDR'),
-        }
 
         # In case of proxy, set 'original' address
         if request.META.get('HTTP_X_FORWARDED_FOR'):
-            threadlocal.auditlog['remote_addr'] = request.META.get('HTTP_X_FORWARDED_FOR').split(',')[0]
+            remote_addr = request.META.get('HTTP_X_FORWARDED_FOR').split(',')[0]
+        else:
+            remote_addr = request.META.get('REMOTE_ADDR')
 
         # Connect signal for automatic logging
-        if hasattr(request, 'user') and is_authenticated(request.user):
-            threadlocal.auditlog['current_user'] = request.user
+        if hasattr(request, 'user') and self.is_authenticated(request.user):
+            current_user = request.user
         else:
-            logger.info("request has no user attr!")
+            current_user = None
 
-        AuditlogMiddleware.thread_local = threadlocal
+        # Initialize thread local storage
+        self.thread_local.auditlog = {
+            'remote_addr': remote_addr,
+            'current_user': current_user,
+        }
+
+    @classmethod
+    def get_user(cls):
+        if hasattr(cls.thread_local, 'auditlog'):
+            return cls.thread_local.auditlog.get('current_user')
+
+    @classmethod
+    def get_remote_address(cls):
+        if hasattr(cls.thread_local, 'auditlog'):
+            return cls.thread_local.auditlog.get('remote_addr')
+
+    def is_authenticated(self, user):
+        """Return whether or not a User is authenticated.
+
+        Function provides compatibility following deprecation of method call to
+        `is_authenticated()` in Django 2.0.
+
+        This is *only* required to support Django < v1.10 (i.e. v1.9 and earlier),
+        as `is_authenticated` was introduced as a property in v1.10.s
+        """
+        if not hasattr(user, 'is_authenticated'):
+            return False
+        if callable(user.is_authenticated):
+            # Will be callable if django.version < 2.0, but is only necessary in
+            # v1.9 and earlier due to change introduced in v1.10 making
+            # `is_authenticated` a property instead of a callable.
+            return user.is_authenticated()
+        else:
+            return user.is_authenticated

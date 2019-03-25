@@ -11,7 +11,7 @@ def track_field(field):
     """
     Returns whether the given field should be tracked by Auditlog.
 
-    Untracked fields are many-to-many relations.
+    Won't track fields that are many-to-many relations.
 
     :param field: The field to check.
     :type field: Field
@@ -23,10 +23,6 @@ def track_field(field):
         return False
 
     if getattr(field, 'remote_field', None) is not None:
-        return False
-
-    # 1.8 check
-    elif getattr(field, 'rel', None) is not None:
         return False
 
     return True
@@ -117,15 +113,14 @@ def model_instance_diff(old, new):
 
     # Check if fields must be filtered
     if model_fields and (model_fields['include_fields'] or model_fields['exclude_fields']) and fields:
-        filtered_fields = []
         if model_fields['include_fields']:
-            filtered_fields = [field for field in fields
-                               if field.name in model_fields['include_fields']]
+            filtered_fields = [field for field in fields if field.name in model_fields['include_fields']]
         else:
             filtered_fields = fields
+
         if model_fields['exclude_fields']:
-            filtered_fields = [field for field in filtered_fields
-                               if field.name not in model_fields['exclude_fields']]
+            filtered_fields = [field for field in filtered_fields if field.name not in model_fields['exclude_fields']]
+
         fields = filtered_fields
 
     for field in fields:
@@ -133,6 +128,9 @@ def model_instance_diff(old, new):
         new_value = get_field_value(new, field)
 
         if old_value != new_value:
+            if field.name in model_fields['mask_value_fields']:
+                old_value = '########'
+                new_value = '********'
             diff[field.name] = (smart_text(old_value), smart_text(new_value))
 
     if len(diff) == 0:

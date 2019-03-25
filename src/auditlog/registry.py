@@ -24,7 +24,7 @@ class AuditlogModelRegistry(object):
         if custom is not None:
             self._signals.update(custom)
 
-    def register(self, model=None, include_fields=[], exclude_fields=[], mapping_fields={}):
+    def register(self, model=None, include_fields=[], exclude_fields=[], mask_value_fields=[]):
         """
         Register a model with auditlog. Auditlog will then track mutations on this model's instances.
 
@@ -34,6 +34,8 @@ class AuditlogModelRegistry(object):
         :type include_fields: list
         :param exclude_fields: The fields to exclude. Overrides the fields to include.
         :type exclude_fields: list
+        :param mask_value_fields: The fields to mask the values of.
+        :type mask_value_fields: list
         """
         def registrar(cls):
             """Register models for a given class."""
@@ -43,7 +45,7 @@ class AuditlogModelRegistry(object):
             self._registry[cls] = {
                 'include_fields': include_fields,
                 'exclude_fields': exclude_fields,
-                'mapping_fields': mapping_fields,
+                'mask_value_fields': mask_value_fields,
             }
             self._connect_signals(cls)
 
@@ -110,7 +112,7 @@ class AuditlogModelRegistry(object):
         return {
             'include_fields': self._registry[model]['include_fields'],
             'exclude_fields': self._registry[model]['exclude_fields'],
-            'mapping_fields': self._registry[model]['mapping_fields'],
+            'mask_value_fields': self._registry[model]['mask_value_fields'],
         }
 
 

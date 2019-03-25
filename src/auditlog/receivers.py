@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import json
 import logging
 
@@ -7,10 +5,6 @@ from auditlog.diff import model_instance_diff
 from auditlog.middleware import AuditlogMiddleware
 
 logger = logging.getLogger("essarch.auditlog")
-
-
-def get_user():
-    return AuditlogMiddleware.thread_local.auditlog.get('current_user')
 
 
 def log_create(sender, instance, created, **kwargs):
@@ -21,9 +15,12 @@ def log_create(sender, instance, created, **kwargs):
     """
     if created:
         changes = model_instance_diff(None, instance)
-        user = get_user()
+        user = AuditlogMiddleware.get_user()
+        if not user:
+            user = 'An unauthenticated user'
 
-        logger.info(f"{user}: in log_create with changes: '{json.dumps(changes)}'")
+        msg = f"User '{user}' created new object"
+        logger.info(f"{msg} '{instance._meta.object_name}(id:{instance.pk})': '{json.dumps(changes)}'")
 
 
 def log_update(sender, instance, **kwargs):
@@ -39,13 +36,15 @@ def log_update(sender, instance, **kwargs):
             pass
         else:
             new = instance
-
             changes = model_instance_diff(old, new)
-            user = get_user()
+            user = AuditlogMiddleware.get_user()
+            if not user:
+                user = 'An unauthenticated user'
 
             # Log an entry only if there are changes
             if changes:
-                logger.info(f"{user}: in log_update with changes: '{json.dumps(changes)}'")
+                msg = f"User '{user}' changed fields of"
+                logger.info(f"{msg} '{instance._meta.object_name}(id:{instance.pk})': '{json.dumps(changes)}'")
 
 
 def log_delete(sender, instance, **kwargs):
@@ -56,5 +55,8 @@ def log_delete(sender, instance, **kwargs):
     """
     if instance.pk is not None:
         changes = model_instance_diff(instance, None)
-        user = get_user()
-        logger.info(f"{user}: in log_delete with changes: '{json.dumps(changes)}'")
+        user = AuditlogMiddleware.get_user()
+        if not user:
+            user = 'An unauthenticated user'
+        msg = f"User '{user}' deleted"
+        logger.info(f"{msg} '{instance._meta.object_name}(id:{instance.pk})' with fields: '{json.dumps(changes)}'")
