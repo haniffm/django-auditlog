@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import threading
 import time
+import logging
 
 from django.conf import settings
 from django.db.models.signals import pre_save
@@ -18,6 +19,7 @@ except ImportError:
 
 
 threadlocal = threading.local()
+logger = logging.getLogger('essarch.auditlog')
 
 
 class AuditlogMiddleware(MiddlewareMixin):
@@ -25,6 +27,7 @@ class AuditlogMiddleware(MiddlewareMixin):
     Middleware to couple the request's user to log items. This is accomplished by currying the signal receiver with the
     user from the request (or None if the user is not authenticated).
     """
+    thread_local = threading.local()
 
     def process_request(self, request):
         """
@@ -45,6 +48,12 @@ class AuditlogMiddleware(MiddlewareMixin):
         if hasattr(request, 'user') and is_authenticated(request.user):
             set_actor = curry(self.set_actor, user=request.user, signal_duid=threadlocal.auditlog['signal_duid'])
             pre_save.connect(set_actor, sender=LogEntry, dispatch_uid=threadlocal.auditlog['signal_duid'], weak=False)
+
+            threadlocal.auditlog['current_user'] = request.user
+        else:
+            logger.info("request has no user attr!")
+
+        AuditlogMiddleware.thread_local = threadlocal
 
     def process_response(self, request, response):
         """

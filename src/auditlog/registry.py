@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 from django.db.models.signals import pre_save, post_save, post_delete
 from django.db.models import Model
-from django.utils.six import iteritems
 
 
 class AuditlogModelRegistry(object):
@@ -105,7 +104,7 @@ class AuditlogModelRegistry(object):
         """
         Generate a dispatch_uid.
         """
-        return (self.__class__, model, signal)
+        return self.__class__, model, signal
 
     def get_model_fields(self, model):
         return {
