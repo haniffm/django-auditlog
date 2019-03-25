@@ -10,8 +10,7 @@ logger = logging.getLogger("essarch.auditlog")
 
 
 def get_user():
-    auditlog = AuditlogMiddleware.thread_local.auditlog
-    return auditlog.get('current_user')
+    return AuditlogMiddleware.thread_local.auditlog.get('current_user')
 
 
 def log_create(sender, instance, created, **kwargs):

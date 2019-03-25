@@ -11,24 +11,22 @@ def track_field(field):
     """
     Returns whether the given field should be tracked by Auditlog.
 
-    Untracked fields are many-to-many relations and relations to the Auditlog LogEntry model.
+    Untracked fields are many-to-many relations.
 
     :param field: The field to check.
     :type field: Field
     :return: Whether the given field should be tracked.
     :rtype: bool
     """
-    from auditlog.models import LogEntry
     # Do not track many to many relations
     if field.many_to_many:
         return False
 
-    # Do not track relations to LogEntry
-    if getattr(field, 'remote_field', None) is not None and field.remote_field.model == LogEntry:
+    if getattr(field, 'remote_field', None) is not None:
         return False
 
     # 1.8 check
-    elif getattr(field, 'rel', None) is not None and field.rel.to == LogEntry:
+    elif getattr(field, 'rel', None) is not None:
         return False
 
     return True
