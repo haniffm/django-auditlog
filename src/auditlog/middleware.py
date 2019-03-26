@@ -1,7 +1,13 @@
 import threading
 
+# Use MiddlewareMixin when present (Django >= 1.10)
+try:
+    from django.utils.deprecation import MiddlewareMixin
+except:
+    MiddlewareMixin = object
 
-class AuditlogMiddleware(object):
+
+class AuditlogMiddleware(MiddlewareMixin):
     """
     Middleware to couple the request's user to the logger in signal.
     """
