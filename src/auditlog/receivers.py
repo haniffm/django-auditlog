@@ -4,7 +4,7 @@ import logging
 from auditlog.diff import model_instance_diff
 from auditlog.utils import get_default_log_message
 
-logger = logging.getLogger("auditlogger")
+logger = logging.getLogger("django.auditlogger")
 
 
 def log_post_save(sender, instance, created, **kwargs):
@@ -20,15 +20,8 @@ def log_post_save(sender, instance, created, **kwargs):
         msg = f"{log_msg} successfully created new object"
         logger.info(f"{msg} '{instance._meta.object_name}(id:{instance.pk})': '{json.dumps(changes)}'")
     else:
-        try:
-            old = sender.objects.get(pk=instance.pk)
-        except sender.DoesNotExist:
-            pass
-        else:
-            changes = model_instance_diff(old, instance)
-
-            msg = f"{log_msg} successfully updated object"
-            logger.info(f"{msg} '{instance._meta.object_name}(id:{instance.pk})': '{json.dumps(changes)}'")
+        msg = f"{log_msg} successfully updated object"
+        logger.info(f"{msg} '{instance._meta.object_name}(id:{instance.pk})'")
 
 
 def log_pre_save(sender, instance, **kwargs):
