@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 
-from django.db.models.signals import pre_save, post_save, post_delete
+from django.db.models.signals import pre_save, post_save, pre_delete, post_delete
 from django.db.models import Model
 
 
@@ -8,28 +8,28 @@ class AuditlogModelRegistry(object):
     """
     A registry that keeps track of the models that use Auditlog to track changes.
     """
-    def __init__(self, create=True, update=True, delete=True, custom=None):
-        from auditlog.receivers import log_create, log_update, log_delete
+    def __init__(self, custom=None):
+        from auditlog.receivers import log_pre_save, log_post_save, log_pre_delete, log_post_delete
 
         self._registry = {}
-        self._signals = {}
+        self._signals = {
+            pre_save: log_pre_save,
+            post_save: log_post_save,
+            pre_delete: log_pre_delete,
+            post_delete: log_post_delete
+        }
 
-        if create:
-            self._signals[post_save] = log_create
-        if update:
-            self._signals[pre_save] = log_update
-        if delete:
-            self._signals[post_delete] = log_delete
-
-        if custom is not None:
+        if custom:
             self._signals.update(custom)
 
-    def register(self, model=None, include_fields=[], exclude_fields=[], mask_value_fields=[]):
+    def register(self, model=None, m2m=False, include_fields=[], exclude_fields=[], mask_value_fields=[]):
         """
         Register a model with auditlog. Auditlog will then track mutations on this model's instances.
 
         :param model: The model to register.
         :type model: Model
+        :param m2m: If many to many models should be checked as well.
+        :type m2m: bool
         :param include_fields: The fields to include. Implicitly excludes all other fields.
         :type include_fields: list
         :param exclude_fields: The fields to exclude. Overrides the fields to include.
@@ -38,6 +38,9 @@ class AuditlogModelRegistry(object):
         :type mask_value_fields: list
         """
         def registrar(cls):
+            if m2m:
+                raise NotImplementedError("We do not have support for m2m fields yet. Set m2m param to false.")
+
             """Register models for a given class."""
             if not issubclass(cls, Model):
                 raise TypeError("Supplied model is not a valid model.")
@@ -46,6 +49,7 @@ class AuditlogModelRegistry(object):
                 'include_fields': include_fields,
                 'exclude_fields': exclude_fields,
                 'mask_value_fields': mask_value_fields,
+                'm2m': m2m,
             }
             self._connect_signals(cls)
 

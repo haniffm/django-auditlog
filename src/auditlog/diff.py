@@ -60,7 +60,7 @@ def get_field_value(obj, field):
     """
     if isinstance(field, DateTimeField):
         # DateTimeFields are timezone-aware, so we need to convert the field
-        # to its naive form before we can accuratly compare them for changes.
+        # to its naive form before we can accurately compare them for changes.
         try:
             value = field.to_python(getattr(obj, field.name, None))
             if value is not None and settings.USE_TZ and not timezone.is_naive(value):
@@ -111,7 +111,25 @@ def model_instance_diff(old, new):
         fields = set()
         model_fields = None
 
-    # Check if fields must be filtered
+    fields = filter_fields(fields, model_fields)
+
+    for field in fields:
+        old_value = get_field_value(old, field)
+        new_value = get_field_value(new, field)
+
+        if old_value != new_value:
+            if field.name in model_fields['mask_value_fields']:
+                new_value, old_value = '########', '********'
+
+            diff[field.name] = (smart_text(old_value), smart_text(new_value))
+
+    if len(diff) == 0:
+        diff = None
+
+    return diff
+
+
+def filter_fields(fields, model_fields):
     if model_fields and (model_fields['include_fields'] or model_fields['exclude_fields']) and fields:
         if model_fields['include_fields']:
             filtered_fields = [field for field in fields if field.name in model_fields['include_fields']]
@@ -122,18 +140,4 @@ def model_instance_diff(old, new):
             filtered_fields = [field for field in filtered_fields if field.name not in model_fields['exclude_fields']]
 
         fields = filtered_fields
-
-    for field in fields:
-        old_value = get_field_value(old, field)
-        new_value = get_field_value(new, field)
-
-        if old_value != new_value:
-            if field.name in model_fields['mask_value_fields']:
-                old_value = '########'
-                new_value = '********'
-            diff[field.name] = (smart_text(old_value), smart_text(new_value))
-
-    if len(diff) == 0:
-        diff = None
-
-    return diff
+    return fields
